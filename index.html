@@ -78,11 +78,16 @@ canvas{display:block;width:100%;height:260px}
 .pp:not(:disabled):active{transform:scale(.96)}
 .pp.has{border-color:var(--lose);background:var(--acc);color:var(--accInk)}
 .pp.bad{border-color:var(--lose);background:var(--lose);color:#fff}
+.snd{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px}
+.snd button{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
+.snd button[aria-pressed="false"]{color:var(--sub);opacity:.7}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.bomb{animation:none}}
 </style>
 </head>
 <body>
 <main>
+
+<div class="snd"><button id="sfxBtn" aria-pressed="true"></button><button id="bgmBtn" aria-pressed="false"></button></div>
 
 <!-- 포털 -->
 <section data-view="" id="v-home">
@@ -168,6 +173,45 @@ canvas{display:block;width:100%;height:260px}
 var $=function(s){return document.querySelector(s)};
 var $$=function(s){return [].slice.call(document.querySelectorAll(s))};
 
+/* 사운드: 파일 없이 브라우저가 직접 만드는 효과음·배경음 */
+var S=(function(){
+ var ctx=null,master,bgmG,sfxOn=true,bgmOn=false,timer=0,nextT=0,st=0;
+ try{var sv=JSON.parse(localStorage.getItem('snd')||'null');if(sv){sfxOn=sv.sfx!==false;bgmOn=!!sv.bgm}}catch(e){}
+ function save(){try{localStorage.setItem('snd',JSON.stringify({sfx:sfxOn,bgm:bgmOn}))}catch(e){}}
+ function ac(){if(!ctx){var C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ctx=new C();master=ctx.createGain();master.gain.value=.5;master.connect(ctx.destination);bgmG=ctx.createGain();bgmG.gain.value=.1;bgmG.connect(master)}if(ctx.state==='suspended')ctx.resume();return ctx}
+ function tone(f,t,d,type,v,dest,to){var o=ctx.createOscillator(),g=ctx.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v||.3,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(dest||master);o.start(t);o.stop(t+d+.05)}
+ function noise(t,d,v){var n=Math.floor(ctx.sampleRate*d),b=ctx.createBuffer(1,n,ctx.sampleRate),a=b.getChannelData(0);for(var i=0;i<n;i++)a[i]=(Math.random()*2-1)*(1-i/n);var s=ctx.createBufferSource(),g=ctx.createGain();s.buffer=b;g.gain.value=v;s.connect(g);g.connect(master);s.start(t)}
+ var FX={
+  click:function(t){tone(660,t,.06,'square',.1)},
+  tick:function(t){tone(900,t,.04,'triangle',.18)},
+  tick2:function(t){tone(1200,t,.03,'square',.08)},
+  shake:function(t){tone(300,t,.12,'triangle',.2);tone(300,t+.25,.12,'triangle',.2)},
+  win:function(t){[523,659,784].forEach(function(f,i){tone(f,t+i*.09,.18,'triangle',.25)})},
+  fanfare:function(t){[523,659,784,1047].forEach(function(f,i){tone(f,t+i*.12,.25,'square',.15)});tone(1047,t+.5,.5,'triangle',.25)},
+  lose:function(t){tone(330,t,.2,'sawtooth',.15);tone(247,t+.18,.3,'sawtooth',.15)},
+  sad:function(t){[392,330,262,196].forEach(function(f,i){tone(f,t+i*.18,.3,'sawtooth',.14)})},
+  tie:function(t){tone(440,t,.12,'sine',.25);tone(440,t+.16,.12,'sine',.25)},
+  slide:function(t){tone(300,t,1.5,'sine',.12,null,900)},
+  pop:function(t){tone(700,t,.1,'triangle',.3);tone(1050,t+.08,.14,'triangle',.3)},
+  pass:function(t){tone(500,t,.1,'square',.14,null,900)},
+  boom:function(t){noise(t,.7,.7);tone(140,t,.6,'sawtooth',.35,null,40)}
+ };
+ function sfx(n){if(!sfxOn)return;var c=ac();if(!c)return;if(FX[n])FX[n](c.currentTime+.01)}
+ var MEL=[0,4,7,4,9,7,4,2,0,4,7,9,7,4,2,-5],BASS=[-24,-24,-19,-17];
+ function fr(s){return 523.25*Math.pow(2,s/12)}
+ function sched(){if(!ctx)return;while(nextT<ctx.currentTime+.3){tone(fr(MEL[st%16]),nextT,.22,'triangle',.5,bgmG);if(st%4===0)tone(fr(BASS[(st>>2)%4]),nextT,.9,'sine',.6,bgmG);nextT+=.26;st++}}
+ function startBgm(){if(!ac()||timer)return;nextT=ctx.currentTime+.05;timer=setInterval(sched,100)}
+ function stopBgm(){clearInterval(timer);timer=0}
+ function ui(){var a=$('#sfxBtn'),b=$('#bgmBtn');a.setAttribute('aria-pressed',sfxOn);a.textContent=(sfxOn?'🔊':'🔇')+' 효과음';b.setAttribute('aria-pressed',bgmOn);b.textContent=(bgmOn?'🎵':'🔇')+' 배경음'}
+ $('#sfxBtn').onclick=function(){sfxOn=!sfxOn;save();ui();if(sfxOn)sfx('click')};
+ $('#bgmBtn').onclick=function(){bgmOn=!bgmOn;save();ui();if(bgmOn)startBgm();else stopBgm()};
+ document.addEventListener('pointerdown',function(){ac();if(bgmOn)startBgm()},{once:true});
+ document.addEventListener('visibilitychange',function(){if(document.hidden)stopBgm();else if(bgmOn&&ctx)startBgm()});
+ document.addEventListener('click',function(e){if(e.target.closest('a.g,.ghost,.big'))sfx('click')});
+ ui();
+ return{sfx:sfx};
+})();
+
 /* 게임 목록: 새 게임은 여기에 한 줄 추가 + data-view 섹션 추가 */
 var GAMES=[
  {id:'rps',e:'✌️',name:'가위바위보',desc:'3판 2선승 대결',tag:'혼자'},
@@ -192,6 +236,7 @@ function route(){
  $$('[data-view]').forEach(function(s){s.hidden=s.dataset.view!==h});
  if(h&&!inited[h]){inited[h]=1;INIT[h]()}
  if(h==='ladder')ladder.draw();
+ if(h!=='bomb'&&window.bombStop)window.bombStop();
  window.scrollTo(0,0);
 }
 window.addEventListener('hashchange',route);
@@ -207,14 +252,14 @@ INIT.rps=function(){
  hands.onclick=function(e){
   var b=e.target.closest('button');if(!b||busy)return;
   var p=+b.dataset.i,c=Math.floor(Math.random()*3);
-  lock(true);setMsg('가위… 바위…');$('#hMe').textContent='✊';$('#hCpu').textContent='✊';
+  lock(true);S.sfx('shake');setMsg('가위… 바위…');$('#hMe').textContent='✊';$('#hCpu').textContent='✊';
   setTimeout(function(){
    $('#hMe').textContent=EM[p];$('#hCpu').textContent=EM[c];
    var d=(p-c+3)%3;
-   if(d===0){setMsg('비겼어요! 다시!','tie');lock(false);return}
-   if(d===1){me++;setMsg('승리! 🎉','win')}else{cpu++;setMsg('패배 😅','lose')}
+   if(d===0){S.sfx('tie');setMsg('비겼어요! 다시!','tie');lock(false);return}
+   if(d===1){me++;S.sfx('win');setMsg('승리! 🎉','win')}else{cpu++;S.sfx('lose');setMsg('패배 😅','lose')}
    $('#sMe').textContent=me;$('#sCpu').textContent=cpu;
-   if(me===2||cpu===2){setMsg(me===2?'🎉 최종 승리!':'😢 최종 패배',me===2?'win':'lose');$('#again').hidden=false}
+   if(me===2||cpu===2){setMsg(me===2?'🎉 최종 승리!':'😢 최종 패배',me===2?'win':'lose');S.sfx(me===2?'fanfare':'sad');$('#again').hidden=false}
    else lock(false);
   },650);
  };
@@ -259,13 +304,13 @@ INIT.ladder=function(){
  ladder.draw=function(){draw()};
  function run(i){
   cancelAnimationFrame(raf);
-  var pa=pathFor(i),t0=null;
+  var pa=pathFor(i),t0=null;S.sfx('slide');
   done=done.filter(function(d){return d.i!==i});
   function step(ts){
    if(!t0)t0=ts;var f=Math.min(1,(ts-t0)/1600);
    draw({i:i,pts:seg(pa.pts,f)});
    if(f<1)raf=requestAnimationFrame(step);
-   else{done.push({i:i,pts:pa.pts});draw();$('#lMsg').textContent=names[i]+' → '+res[pa.end]}
+   else{done.push({i:i,pts:pa.pts});draw();S.sfx('pop');$('#lMsg').textContent=names[i]+' → '+res[pa.end]}
   }
   raf=requestAnimationFrame(step);
  }
@@ -329,8 +374,8 @@ INIT.pick=function(){
   var w=Math.floor(Math.random()*L.length),steps=L.length*3+w+1,i=0;
   (function tick(){
    var cur=i%L.length;i++;
-   if(i>steps){render(-1,w);$('#res').textContent='🎯 '+L[w]+'! 고민 끝!';spin=false;$('#go').disabled=false;return}
-   render(cur);setTimeout(tick,60+Math.pow(i/steps,3)*380);
+   if(i>steps){S.sfx('win');render(-1,w);$('#res').textContent='🎯 '+L[w]+'! 고민 끝!';spin=false;$('#go').disabled=false;return}
+   S.sfx('tick');render(cur);setTimeout(tick,60+Math.pow(i/steps,3)*380);
   })();
  };
  render();
@@ -338,7 +383,7 @@ INIT.pick=function(){
 
 /* ---- 폭탄 돌리기 ---- */
 INIT.bomb=function(){
- var n=4,names=['김대리','박과장','이사원','최인턴'],state='setup',holder=0,tm=0,btns=[];
+ var n=4,names=['김대리','박과장','이사원','최인턴'],state='setup',holder=0,tm=0,btns=[],bt=0;
  function fields(){var T=$('#bNames');T.innerHTML='';for(var i=0;i<n;i++){(function(i){var inp=document.createElement('input');inp.value=names[i];inp.maxLength=6;inp.setAttribute('aria-label',(i+1)+'번 이름');inp.oninput=function(){names[i]=inp.value||('참가자'+(i+1))};T.appendChild(inp)})(i)}$('#bnV').textContent=n+'명'}
  function setN(v){if(v<2||v>6)return;n=v;while(names.length<n)names.push('참가자'+(names.length+1));fields()}
  $('#bnM').onclick=function(){setN(n-1)};$('#bnP').onclick=function(){setN(n+1)};
@@ -348,7 +393,7 @@ INIT.bomb=function(){
   if(state==='play')msg(names[holder]+' 님에게 폭탄! 얼른 넘기세요');
  }
  function boom(){
-  state='over';var bm=$('#bBomb');bm.textContent='💥';bm.classList.add('boom');
+  state='over';clearInterval(bt);S.sfx('boom');var bm=$('#bBomb');bm.textContent='💥';bm.classList.add('boom');
   render();btns[holder].classList.remove('has');btns[holder].classList.add('bad');btns[holder].querySelector('small').textContent='💥';
   msg(names[holder]+' 님 폭발! 걸렸어요','lose');$('#bAgain').hidden=false;
   try{navigator.vibrate&&navigator.vibrate(300)}catch(e){}
@@ -360,13 +405,14 @@ INIT.bomb=function(){
   for(var i=0;i<n;i++){(function(i){
    var b=document.createElement('button');b.className='pp';b.innerHTML='<span></span><small></small>';
    b.firstChild.textContent=names[i];
-   b.onclick=function(){if(state!=='play'||i===holder)return;holder=i;render();try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}};
+   b.onclick=function(){if(state!=='play'||i===holder)return;holder=i;S.sfx('pass');render();try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}};
    g.appendChild(b);btns.push(b);
   })(i)}
   holder=Math.floor(Math.random()*n);state='play';render();
-  tm=setTimeout(boom,6000+Math.random()*12000);
+  tm=setTimeout(boom,6000+Math.random()*12000);clearInterval(bt);bt=setInterval(function(){S.sfx('tick2')},600);
  };
- $('#bAgain').onclick=function(){clearTimeout(tm);state='setup';$('#bPlay').hidden=true;$('#bSetup').hidden=false};
+ window.bombStop=function(){clearTimeout(tm);clearInterval(bt);if(state==='play'||state==='over'){state='setup';$('#bPlay').hidden=true;$('#bSetup').hidden=false}};
+ $('#bAgain').onclick=function(){clearInterval(bt);clearTimeout(tm);state='setup';$('#bPlay').hidden=true;$('#bSetup').hidden=false};
  fields();
 };
 
