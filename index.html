@@ -84,6 +84,14 @@ canvas{display:block;width:100%;height:260px}
 .snd{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:8px}
 .snd .brand{margin-right:auto;font:400 22px 'Jua','Noto Sans KR',sans-serif;text-decoration:none;color:var(--ink)}
 .ft{margin-top:44px;padding-top:20px;border-top:2px solid var(--line);text-align:center;color:var(--sub);font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px;margin:14px 0}
+.cd{aspect-ratio:3/4;border:2px solid var(--line);border-radius:14px;background:var(--ink);color:var(--bg);font:400 34px 'Jua',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;touch-action:manipulation;transition:transform .15s}
+.cd small{font:700 13px 'Noto Sans KR',sans-serif}
+.cd:not(:disabled):active{transform:scale(.95)}
+.cd:disabled{cursor:default}
+.cd.ok{background:var(--card);color:var(--win);border-color:var(--win)}
+.cd.bad{background:var(--lose);color:#fff;border-color:var(--lose)}
+.cd.dim{opacity:.45}
 .ft p{margin:4px 0}
 .ft .fb{font:400 22px 'Jua','Noto Sans KR',sans-serif;color:var(--ink)}
 .snd button{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
@@ -173,6 +181,25 @@ canvas{display:block;width:100%;height:260px}
   </div>
 </section>
 
+<!-- 꽝 뽑기 -->
+<section data-view="card" hidden class="narrow">
+  <a class="back" href="#">← 놀이터</a>
+  <h2>꽝 뽑기 🃏</h2>
+  <p class="sub">차례대로 카드 한 장씩 열어요. 꽝을 뽑은 사람이 쏑니다!</p>
+  <div class="panel">
+    <div id="cSetup">
+      <div class="ctl"><button class="ghost" id="cnM" aria-label="인원 줄이기">−</button><b id="cnV">4명</b><button class="ghost" id="cnP" aria-label="인원 늘리기">+</button></div>
+      <div class="nn" id="cNames"></div>
+      <button class="big" id="cStart">카드 섞기!</button>
+    </div>
+    <div id="cPlay" hidden>
+      <p class="msg" id="cMsg"></p>
+      <div class="cards" id="cc"></div>
+      <button class="big" id="cAgain" hidden>다시하기</button>
+    </div>
+  </div>
+</section>
+
 <footer class="ft">
   <p class="fb">Mellicon</p>
   <p>쉬는 시간을 가볍게 채우는 캐주얼 게임을 만듭니다.</p>
@@ -230,7 +257,8 @@ var GAMES=[
  {id:'rps',e:'✌️',name:'가위바위보',desc:'3판 2선승 대결',tag:'혼자'},
  {id:'ladder',e:'🪜',name:'사다리 타기',desc:'쏠 사람, 청소 당번 정하기',tag:'여럿'},
  {id:'pick',e:'🎯',name:'선택장애 골라주기',desc:'메뉴, 약속, 뭐든 대신 골라요',tag:'혼자·여럿'},
- {id:'bomb',e:'💣',name:'폭탄 돌리기',desc:'터지기 전에 넘겨요',tag:'여럿'}
+ {id:'bomb',e:'💣',name:'폭탄 돌리기',desc:'터지기 전에 넘겨요',tag:'여럿'},
+ {id:'card',e:'🃏',name:'꽝 뽑기',desc:'카드를 열어 꽝을 피하세요',tag:'여럿'}
 ];
 var list=$('#list');
 GAMES.forEach(function(g){
@@ -426,6 +454,38 @@ INIT.bomb=function(){
  };
  window.bombStop=function(){clearTimeout(tm);clearInterval(bt);if(state==='play'||state==='over'){state='setup';$('#bPlay').hidden=true;$('#bSetup').hidden=false}};
  $('#bAgain').onclick=function(){clearInterval(bt);clearTimeout(tm);state='setup';$('#bPlay').hidden=true;$('#bSetup').hidden=false};
+ fields();
+};
+
+/* ---- 꽝 뽑기 ---- */
+INIT.card=function(){
+ var n=4,names=['김대리','박과장','이사원','최인턴'],state='setup',bad=0,turn=0,btns=[];
+ function fields(){var T=$('#cNames');T.innerHTML='';for(var i=0;i<n;i++){(function(i){var inp=document.createElement('input');inp.value=names[i];inp.maxLength=6;inp.setAttribute('aria-label',(i+1)+'번 이름');inp.oninput=function(){names[i]=inp.value||('참가자'+(i+1))};T.appendChild(inp)})(i)}$('#cnV').textContent=n+'명'}
+ function setN(v){if(v<2||v>8)return;n=v;while(names.length<n)names.push('참가자'+(names.length+1));fields()}
+ $('#cnM').onclick=function(){setN(n-1)};$('#cnP').onclick=function(){setN(n+1)};
+ function msg(t,c){var m=$('#cMsg');m.textContent=t;m.className='msg '+(c||'')}
+ function show(b,cls,em,who){b.className='cd '+cls;b.querySelector('span').textContent=em;b.querySelector('small').textContent=who||'';b.disabled=true}
+ function pick(i){
+  if(state!=='play'||btns[i].disabled)return;
+  var who=names[turn];
+  if(i===bad){
+   state='over';show(btns[i],'bad','💥',who+' 꽝');S.sfx('boom');
+   btns.forEach(function(b,k){if(!b.disabled)show(b,'ok dim','✅','')});
+   msg(who+' 님이 꽝! 오늘은 쏑니다 😱','lose');$('#cAgain').hidden=false;return;
+  }
+  show(btns[i],'ok','✅',who);S.sfx('pop');turn++;
+  msg(names[turn]+' 님 차례! 카드를 골라요');
+ }
+ $('#cStart').onclick=function(){
+  $('#cSetup').hidden=true;$('#cPlay').hidden=false;$('#cAgain').hidden=true;
+  var g=$('#cc');g.innerHTML='';btns=[];bad=Math.floor(Math.random()*n);turn=0;state='play';
+  for(var i=0;i<n;i++){(function(i){
+   var b=document.createElement('button');b.className='cd';b.innerHTML='<span>?</span><small></small>';
+   b.setAttribute('aria-label',(i+1)+'번 카드');b.onclick=function(){pick(i)};g.appendChild(b);btns.push(b);
+  })(i)}
+  msg(names[0]+' 님 차례! 카드를 골라요');
+ };
+ $('#cAgain').onclick=function(){state='setup';$('#cPlay').hidden=true;$('#cSetup').hidden=false};
  fields();
 };
 
