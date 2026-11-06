@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>쉬는시간 놀이터</title>
+<title>쉬는시간 놀이터 | Mellicon</title>
+<meta name="description" content="쉬는 시간에 가볍게 즐기는 캐주얼 게임 놀이터. 가위바위보, 사다리 타기, 선택장애 골라주기, 폭탄 돌리기. by Mellicon">
+<meta property="og:title" content="쉬는시간 놀이터 | Mellicon">
+<meta property="og:description" content="점심 내기부터 선택장애 해결까지, 5분이면 충분한 캐주얼 게임.">
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#EEF2F5;--card:#fff;--ink:#1D2B44;--sub:#5B6B82;--line:#D5DDE6;--acc:#F5C518;--accInk:#1D2B44;--win:#1F9D63;--lose:#E4572E;--tie:#7A8BA3;
@@ -78,7 +81,11 @@ canvas{display:block;width:100%;height:260px}
 .pp:not(:disabled):active{transform:scale(.96)}
 .pp.has{border-color:var(--lose);background:var(--acc);color:var(--accInk)}
 .pp.bad{border-color:var(--lose);background:var(--lose);color:#fff}
-.snd{display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px}
+.snd{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:8px}
+.snd .brand{margin-right:auto;font:400 22px 'Jua','Noto Sans KR',sans-serif;text-decoration:none;color:var(--ink)}
+.ft{margin-top:44px;padding-top:20px;border-top:2px solid var(--line);text-align:center;color:var(--sub);font-size:13px}
+.ft p{margin:4px 0}
+.ft .fb{font:400 22px 'Jua','Noto Sans KR',sans-serif;color:var(--ink)}
 .snd button{border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
 .snd button[aria-pressed="false"]{color:var(--sub);opacity:.7}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.bomb{animation:none}}
@@ -87,7 +94,7 @@ canvas{display:block;width:100%;height:260px}
 <body>
 <main>
 
-<div class="snd"><button id="sfxBtn" aria-pressed="true"></button><button id="bgmBtn" aria-pressed="false"></button></div>
+<div class="snd"><a class="brand" href="#">Mellicon</a><button id="sfxBtn" aria-pressed="true"></button><button id="bgmBtn" aria-pressed="false"></button></div>
 
 <!-- 포털 -->
 <section data-view="" id="v-home">
@@ -165,6 +172,12 @@ canvas{display:block;width:100%;height:260px}
     </div>
   </div>
 </section>
+
+<footer class="ft">
+  <p class="fb">Mellicon</p>
+  <p>쉬는 시간을 가볍게 채우는 캐주얼 게임을 만듭니다.</p>
+  <p>© 2026 Mellicon. All rights reserved.</p>
+</footer>
 
 </main>
 
